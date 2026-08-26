@@ -3,9 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
-import subprocess
-import sys
 import traceback
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -14,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import Settings
+from .gpu_worker_client import PersistentGpuWorker
 from .llm_adapter import FlashAssistant
 from .srt import write_outputs
 from .transcript import parse_transcript
@@ -60,7 +58,6 @@ class JobOptions:
     text_field: str | None = None
     use_flash: bool = False
     asr_context: str = ""
-    flash_attention: bool = False
     local_refine: bool = True
 
 
@@ -72,6 +69,7 @@ class JobManager:
         self.jobs: dict[str, JobState] = {}
         self.workers: list[asyncio.Task[None]] = []
         self.flash = FlashAssistant(settings)
+        self.gpu_worker = PersistentGpuWorker(settings, project_root)
 
     def _job_dir(self, job_id: str) -> Path:
         return self.settings.jobs_dir / job_id
@@ -92,6 +90,11 @@ class JobManager:
         self._save(state)
 
     async def start(self) -> None:
+        if self.settings.max_concurrent_jobs != 1:
+            raise RuntimeError(
+                "常驻单 GPU Worker 要求 gpu.max_concurrent_jobs: 1。"
+                "多个用户仍可同时提交，任务会自动排队。"
+            )
         self.settings.jobs_dir.mkdir(parents=True, exist_ok=True)
         for meta in self.settings.jobs_dir.glob("*/job.json"):
             try:
@@ -104,14 +107,17 @@ class JobManager:
                 self.jobs[state.id] = state
             except Exception:
                 LOGGER.warning("Ignored unreadable job metadata: %s", meta)
-        for number in range(max(1, self.settings.max_concurrent_jobs)):
-            self.workers.append(asyncio.create_task(self._worker(number)))
+        LOGGER.info("Loading persistent GPU worker on CUDA device %s", self.settings.cuda_visible_devices)
+        await asyncio.to_thread(self.gpu_worker.start)
+        LOGGER.info("Persistent GPU worker is ready; models remain resident")
+        self.workers.append(asyncio.create_task(self._worker(0)))
 
     async def stop(self) -> None:
         for worker in self.workers:
             worker.cancel()
         await asyncio.gather(*self.workers, return_exceptions=True)
         self.workers.clear()
+        await asyncio.to_thread(self.gpu_worker.stop)
 
     def create(
         self,
@@ -203,9 +209,7 @@ class JobManager:
 
         raw_aligned = job_dir / "aligned.raw.jsonl"
         log_path = job_dir / "alignment.log"
-        command = [
-            sys.executable,
-            str(self.project_root / "jsonl_forced_align.py"),
+        argv = [
             "--media",
             str(media_path),
             "--jsonl",
@@ -222,29 +226,12 @@ class JobManager:
             str(raw_aligned),
         ]
         if options.asr_context:
-            command.extend(["--asr-context", options.asr_context])
-        if options.flash_attention:
-            command.append("--flash-attn")
+            argv.extend(["--asr-context", options.asr_context])
         if not options.local_refine:
-            command.append("--no-local-refine")
+            argv.append("--no-local-refine")
 
-        env = os.environ.copy()
-        env["QWEN_MODEL_ROOT"] = str(self.settings.model_root)
-        env["CUDA_VISIBLE_DEVICES"] = self.settings.cuda_visible_devices
-        self._update(state, progress=22, stage="GPU 正在进行语音识别与对齐")
-        with log_path.open("w", encoding="utf-8") as log:
-            process = subprocess.Popen(
-                command,
-                cwd=self.project_root,
-                env=env,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                text=True,
-            )
-            code = process.wait()
-        if code != 0:
-            tail = log_path.read_text(encoding="utf-8", errors="replace")[-3000:]
-            raise RuntimeError(f"对齐引擎退出（代码 {code}）。日志末尾：\n{tail}")
+        self._update(state, progress=22, stage="常驻 GPU 模型正在进行语音识别与对齐")
+        self.gpu_worker.run_job(state.id, argv, log_path)
 
         self._update(state, progress=92, stage="生成 SRT 和 JSONL")
         result_dir = job_dir / "results"

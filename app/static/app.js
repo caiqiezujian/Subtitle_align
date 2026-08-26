@@ -132,7 +132,6 @@ form.addEventListener("submit", async (event) => {
   data.append("text_field", $("#textField").value);
   data.append("use_flash", $("#useFlash").checked);
   data.append("asr_context", $("#asrContext").value);
-  data.append("flash_attention", $("#flashAttention").checked);
   data.append("local_refine", $("#localRefine").checked);
 
   try {

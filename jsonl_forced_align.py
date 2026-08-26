@@ -1161,7 +1161,10 @@ def enforce_monotonic_line_times(
 # Main pipeline
 # ---------------------------------------------------------------------------
 
-def run_alignment(args: argparse.Namespace) -> None:
+def run_alignment(
+    args: argparse.Namespace,
+    engine: Optional[QwenEngine] = None,
+) -> None:
     validate_models()
 
     language = canonical_language(
@@ -1187,12 +1190,13 @@ def run_alignment(args: argparse.Namespace) -> None:
         time_field,
     )
 
-    engine = QwenEngine(
-        gpu_memory_utilization=args.gpu_memory_utilization,
-        max_inference_batch_size=args.max_inference_batch_size,
-        max_new_tokens=args.max_new_tokens,
-        use_flash_attention=args.flash_attn,
-    )
+    if engine is None:
+        engine = QwenEngine(
+            gpu_memory_utilization=args.gpu_memory_utilization,
+            max_inference_batch_size=args.max_inference_batch_size,
+            max_new_tokens=args.max_new_tokens,
+            use_flash_attention=args.flash_attn,
+        )
 
     # Tokenize exact JSONL transcript before media processing.
     ref_tokens = tokenize_jsonl_rows(

@@ -12,6 +12,14 @@ gpu:
   visible_devices: "5"
   max_concurrent_jobs: 1
 
+# 模型在服务启动时加载并常驻 GPU，所有任务复用同一个实例。
+alignment_engine:
+  gpu_memory_utilization: 0.65
+  max_inference_batch_size: 32
+  max_new_tokens: 2048
+  flash_attention: false
+  startup_timeout_seconds: 900
+
 models:
   root: "/data/yb/Code/models"
 

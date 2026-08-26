@@ -86,11 +86,20 @@ def health() -> dict:
         "forced_aligner": (settings.model_root / "Qwen3-ForcedAligner-0.6B").exists(),
     }
     return {
-        "status": "ok" if shutil.which("ffmpeg") and all(models.values()) else "degraded",
+        "status": (
+            "ok"
+            if shutil.which("ffmpeg")
+            and all(models.values())
+            and manager.gpu_worker.current_status == "ready"
+            else "degraded"
+        ),
         "version": __version__,
         "config_file": str(settings.config_path),
         "port": settings.server_port,
         "gpu_visible_devices": settings.cuda_visible_devices,
+        "gpu_worker": manager.gpu_worker.current_status,
+        "models_resident": manager.gpu_worker.current_status == "ready",
+        "engine_flash_attention": settings.engine_flash_attention,
         "ffmpeg": bool(shutil.which("ffmpeg")),
         "models": models,
         "v4_flash": manager.flash.available,
@@ -106,7 +115,6 @@ async def create_job(
     text_field: Annotated[str, Form()] = "",
     use_flash: Annotated[bool, Form()] = False,
     asr_context: Annotated[str, Form()] = "",
-    flash_attention: Annotated[bool, Form()] = False,
     local_refine: Annotated[bool, Form()] = True,
 ) -> dict:
     media_name = Path(media.filename or "media.bin").name
@@ -121,7 +129,6 @@ async def create_job(
         text_field=text_field.strip() or None,
         use_flash=use_flash,
         asr_context=asr_context.strip(),
-        flash_attention=flash_attention,
         local_refine=local_refine,
     )
     state, media_path, transcript_path = manager.create(

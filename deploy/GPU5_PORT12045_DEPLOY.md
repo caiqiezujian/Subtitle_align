@@ -36,6 +36,13 @@ gpu:
   visible_devices: "5"
   max_concurrent_jobs: 1
 
+alignment_engine:
+  gpu_memory_utilization: 0.65
+  max_inference_batch_size: 32
+  max_new_tokens: 2048
+  flash_attention: false
+  startup_timeout_seconds: 900
+
 models:
   root: "/data/yb/Code/models"
 
@@ -98,6 +105,8 @@ pkill -f "python start_server.py"
 
 所有 Uvicorn 参数由 `config.yaml` 的 `server` 部分读取。程序会拒绝 `workers` 大于 1，防止重复占用 GPU 显存。
 
+启动阶段会加载 ASR 和 ForcedAligner。看到日志 `Persistent GPU worker is ready` 后，模型已经常驻显存；以后提交任务会直接复用，不再重复加载模型。
+
 ## 4. 确认 Docker 端口
 
 如果容器使用 `--network host`，无需额外映射，直接访问：
@@ -149,6 +158,8 @@ curl -s http://127.0.0.1:12045/api/health | python3 -m json.tool
 - `models.asr: true`
 - `models.forced_aligner: true`
 - `v4_flash: true`
+- `gpu_worker: "ready"`
+- `models_resident: true`
 - `max_concurrent_jobs: 1`
 
 提交实际任务后检查 GPU 5：

@@ -27,7 +27,7 @@ Download both artifacts after the job reaches `completed`.
 
 ## Diagnose failures
 
-Check `/api/health` first. A degraded response identifies missing FFmpeg or local model directories. Then inspect the job error and, when operating inside the server workspace, `data/jobs/<job-id>/alignment.log`.
+Check `/api/health` first. A degraded response identifies missing FFmpeg, local model directories, or a failed persistent GPU Worker. Inspect `data/gpu-worker.log` for startup/model-residency failures, then inspect the job error and `data/jobs/<job-id>/alignment.log` for a specific alignment failure.
 
 Runtime settings normally come from the repository-root `config.yaml`, created from `config.example.yaml`. Prefer changing that file over exporting individual variables. Environment variables remain optional compatibility overrides.
 

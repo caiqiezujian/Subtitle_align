@@ -30,12 +30,14 @@
 ```text
 app/
   main.py          FastAPI 与下载接口
-  jobs.py          单 GPU 任务队列、状态持久化与对齐进程
+  jobs.py          单 GPU 任务队列、状态持久化与常驻 Worker 调度
+  gpu_worker_client.py  常驻 GPU Worker 的进程通信客户端
   transcript.py    TXT/SRT/JSONL/JSON/CSV/TSV 自动适配
   llm_adapter.py   可选的 v4-flash OpenAI-compatible 适配器
   srt.py           标准 JSONL 与 PotPlayer SRT 输出
   static/          响应式前端
 jsonl_forced_align.py  原有 Qwen3 对齐核心（增加了方法字段输出）
+persistent_gpu_worker.py  启动时加载并持续持有 ASR/ForcedAligner
 .codex/skills/subtitle-alignment-ops/  项目内 Codex Skill
 deploy/            systemd 与 Nginx 示例
 tests/             不需要 GPU 的输入/输出单元测试
@@ -71,6 +73,13 @@ gpu:
   visible_devices: "5"
   max_concurrent_jobs: 1
 
+alignment_engine:
+  gpu_memory_utilization: 0.65
+  max_inference_batch_size: 32
+  max_new_tokens: 2048
+  flash_attention: false
+  startup_timeout_seconds: 900
+
 models:
   root: "/data/yb/Code/models"
 
@@ -88,6 +97,8 @@ v4_flash:
 ```
 
 `config.yaml` 已被 Git 忽略，不会把真实 Key 推送到仓库。环境变量仍作为可选的兼容覆盖方式存在，但普通部署不需要使用。
+
+服务启动时会立即拉起独立 GPU Worker，加载 Qwen3-ASR 和 ForcedAligner，并保持模型常驻 GPU。启动日志出现 `Persistent GPU worker is ready` 后页面才开始接受访问；后续任务复用同一模型实例，不会重复加载和释放显存。
 
 模型目录应为：
 

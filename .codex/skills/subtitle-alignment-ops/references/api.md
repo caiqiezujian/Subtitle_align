@@ -16,8 +16,9 @@ Default local address: `http://127.0.0.1:12045`. If `security.api_key` is set in
 - `text_field`: optional structured-file text field.
 - `use_flash`: optional boolean.
 - `asr_context`: optional terms/names.
-- `flash_attention`: optional boolean.
 - `local_refine`: boolean; normally keep `true`.
+
+FlashAttention and GPU engine memory settings are startup-time options under `alignment_engine` in `config.yaml`; they are not per-job API fields because the model remains resident between jobs.
 
 The response is HTTP 202 and includes `id`, `status`, `progress`, and `stage`.
 

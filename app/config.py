@@ -103,6 +103,21 @@ class Settings:
             default=_config("gpu", "max_concurrent_jobs", 1),
         )
     )
+    engine_gpu_memory_utilization: float = float(
+        _config("alignment_engine", "gpu_memory_utilization", 0.65)
+    )
+    engine_max_inference_batch_size: int = int(
+        _config("alignment_engine", "max_inference_batch_size", 32)
+    )
+    engine_max_new_tokens: int = int(
+        _config("alignment_engine", "max_new_tokens", 2048)
+    )
+    engine_flash_attention: bool = _as_bool(
+        _config("alignment_engine", "flash_attention", False)
+    )
+    engine_startup_timeout_seconds: int = int(
+        _config("alignment_engine", "startup_timeout_seconds", 900)
+    )
     api_key: str = str(
         _first_env("SUBALIGN_API_KEY", default=_config("security", "api_key", ""))
     )
