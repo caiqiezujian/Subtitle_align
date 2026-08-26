@@ -78,7 +78,16 @@ def main() -> None:
             logging.getLogger().addHandler(handler)
             try:
                 job_args = aligner.build_parser().parse_args(command["argv"])
-                aligner.run_alignment(job_args, engine=engine)
+                aligner.run_alignment(
+                    job_args,
+                    engine=engine,
+                    progress_callback=lambda progress, stage: emit(
+                        "progress",
+                        job_id=job_id,
+                        progress=progress,
+                        stage=stage,
+                    ),
+                )
             finally:
                 logging.getLogger().removeHandler(handler)
                 handler.close()

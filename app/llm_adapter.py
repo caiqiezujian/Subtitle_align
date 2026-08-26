@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from dataclasses import replace
-from typing import Any
+from typing import Any, Callable, Optional
 
 import httpx
 
@@ -52,11 +52,16 @@ class FlashAssistant:
     def available(self) -> bool:
         return bool(self.settings.flash_enabled and self.settings.flash_base_url)
 
-    def normalize(self, transcript: ParsedTranscript) -> ParsedTranscript:
+    def normalize(
+        self,
+        transcript: ParsedTranscript,
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+    ) -> ParsedTranscript:
         if not self.available:
             return transcript
 
         normalized = []
+        total_batches = max(1, (len(transcript.lines) + 99) // 100)
         for offset in range(0, len(transcript.lines), 100):
             batch = transcript.lines[offset : offset + 100]
             try:
@@ -66,6 +71,8 @@ class FlashAssistant:
                 cleaned = [line.text for line in batch]
             for line, text in zip(batch, cleaned):
                 normalized.append(replace(line, text=text))
+            if progress_callback:
+                progress_callback(offset // 100 + 1, total_batches)
         return replace(transcript, lines=normalized)
 
     def _normalize_batch(self, lines: list[str]) -> list[str]:

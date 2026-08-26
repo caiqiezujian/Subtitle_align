@@ -75,6 +75,13 @@ function renderJob(job) {
   stageText.textContent = job.stage || "处理中";
   const labels = { queued: "排队中", running: "处理中", completed: "已完成", failed: "失败" };
   statusPill.textContent = labels[job.status] || job.status;
+  const phases = [...document.querySelectorAll("#progressPhases span")];
+  phases.forEach((phase, index) => {
+    const start = Number(phase.dataset.start);
+    const nextStart = index + 1 < phases.length ? Number(phases[index + 1].dataset.start) : 101;
+    phase.classList.toggle("complete", progress >= nextStart || job.status === "completed");
+    phase.classList.toggle("active", progress >= start && progress < nextStart && job.status !== "completed");
+  });
 
   if (job.detected_format || job.line_count) {
     resultSummary.classList.remove("hidden");

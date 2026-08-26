@@ -66,10 +66,15 @@ h1 em { font-style: normal; color: var(--teal); }
 .filename { display: block; max-width: 86%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 10px/1 ui-monospace, monospace; letter-spacing: .06em; color: var(--teal); text-transform: uppercase; }
 .settings-row { display: grid; grid-template-columns: 1fr 1.2fr 1.35fr; gap: 14px; margin-top: 18px; }
 .field, .switch-card { border: 1px solid var(--line); border-radius: 13px; min-height: 76px; padding: 14px 16px; background: rgba(244,241,232,.42); }
-.field { display: flex; flex-direction: column; gap: 8px; }
-.field > span { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 800; }
+.field { display: block; position: relative; padding: 0; cursor: text; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+.field:hover { border-color: rgba(31,116,100,.58); background: rgba(215,255,87,.08); }
+.field:focus-within { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(31,116,100,.12); background: rgba(255,255,255,.6); }
+.field > span { position: absolute; z-index: 2; left: 16px; top: 13px; pointer-events: none; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 800; }
 .field > span i { color: var(--muted); font-weight: 500; font-style: normal; text-transform: none; }
-.field input, .field select { appearance: none; border: 0; outline: 0; width: 100%; padding: 0; background: transparent; color: var(--ink); font: 600 14px/1.4 inherit; }
+.field input, .field select { appearance: none; position: absolute; inset: 0; border: 0; outline: 0; width: 100%; height: 100%; padding: 30px 16px 8px; background: transparent; color: var(--ink); font: 600 14px/1.4 inherit; }
+.field select { cursor: pointer; padding-right: 42px; }
+.select-field { cursor: pointer; }
+.select-field::after { content: "⌄"; position: absolute; z-index: 2; right: 16px; top: 50%; transform: translateY(-25%); pointer-events: none; color: var(--teal); font-size: 18px; font-weight: 800; }
 .field input::placeholder { color: #9a9e99; }
 .switch-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; }
 .switch-card input { position: absolute; opacity: 0; }
@@ -100,6 +105,14 @@ h1 em { font-style: normal; color: var(--teal); }
 .progress-track span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, var(--teal), #4eaa86, var(--lime)); transition: width .5s ease; }
 .progress-meta { display: flex; justify-content: space-between; padding: 0 29px 22px; font-size: 13px; }
 .progress-meta span { font: 800 12px/1 ui-monospace, monospace; }
+.progress-phases { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 0 28px 23px; }
+.progress-phases span { position: relative; padding-top: 12px; color: #969b96; font-size: 10px; font-weight: 700; text-align: center; transition: color .25s ease; }
+.progress-phases span::before { content: ""; position: absolute; z-index: 2; left: 50%; top: 0; width: 7px; height: 7px; border-radius: 50%; background: #cfcdc5; transform: translateX(-50%); transition: .25s ease; }
+.progress-phases span::after { content: ""; position: absolute; z-index: 1; right: 50%; top: 3px; width: calc(100% + 6px); height: 1px; background: #cfcdc5; }
+.progress-phases span:first-child::after { display: none; }
+.progress-phases span.complete, .progress-phases span.active { color: var(--teal); }
+.progress-phases span.complete::before { background: var(--teal); }
+.progress-phases span.active::before { background: var(--lime); box-shadow: 0 0 0 4px rgba(31,116,100,.16); border: 1px solid var(--teal); }
 .result-summary { display: grid; grid-template-columns: repeat(3, 1fr); margin: 3px 28px 22px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .result-summary div { padding: 17px; display: flex; flex-direction: column; gap: 7px; }
 .result-summary div + div { border-left: 1px solid var(--line); }
@@ -141,6 +154,7 @@ footer { border-top: 1px solid var(--line); padding: 23px 0 35px; display: flex;
   .primary-button { width: 100%; }
   .progress-track { margin-inline: 20px; }
   .progress-meta { padding-inline: 20px; }
+  .progress-phases { padding-inline: 20px; overflow-x: auto; grid-template-columns: repeat(6, minmax(76px, 1fr)); }
   .result-summary { margin-inline: 20px; }
   .download-row { grid-template-columns: 1fr; padding-inline: 20px; }
   .download-button, .new-button { min-height: 65px; }

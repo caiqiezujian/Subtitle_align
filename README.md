@@ -149,6 +149,10 @@ v4_flash:
 
 它只处理逐行文本，不会接收音视频。提示词强制要求“不翻译、不改写、不增删、不合并、不拆分”，并兼容纯 JSON、Markdown JSON 围栏和前后附带说明三种返回形式。返回行数不一致、空行、超时或接口异常时会自动重试，最终仍失败则回退到确定性清洗，任务继续执行。
 
+任务进度来自真实流水线事件：输入解析、v4-flash 分批清洗、音轨标准化、VAD 切分、ASR 分段、全局文本匹配、ForcedAligner 分批精修、缺失行插值和文件生成，不再使用固定的 22% 等待值。
+
+纯标点或符号行不送入 ForcedAligner。若它位于两条成功字幕之间，会使用“上一条结束时间 → 下一条开始时间”；连续多条无法对齐的字幕会均分这段空档。JSONL 的 `method` 会标记为 `punctuation_gap_interpolation` 或 `unresolved_gap_interpolation`。
+
 ## API 示例
 
 ```bash

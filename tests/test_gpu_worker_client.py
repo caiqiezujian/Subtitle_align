@@ -17,8 +17,15 @@ def test_gpu_worker_stays_alive_and_serves_multiple_jobs(tmp_path: Path):
         assert worker.current_status == "ready"
         assert worker.process is not None
         first_pid = worker.process.pid
-        worker.run_job("job-1", [], tmp_path / "job-1.log")
+        progress = []
+        worker.run_job(
+            "job-1",
+            [],
+            tmp_path / "job-1.log",
+            progress_callback=lambda value, stage: progress.append((value, stage)),
+        )
         worker.run_job("job-2", [], tmp_path / "job-2.log")
+        assert progress == [(64, "ASR 2/3")]
         assert worker.process.pid == first_pid
         assert worker.process.poll() is None
     finally:

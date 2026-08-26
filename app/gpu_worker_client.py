@@ -7,7 +7,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Optional
 
 from .config import Settings
 
@@ -125,7 +125,13 @@ class PersistentGpuWorker:
             }
         )
 
-    def run_job(self, job_id: str, argv: list[str], log_path: Path) -> None:
+    def run_job(
+        self,
+        job_id: str,
+        argv: list[str],
+        log_path: Path,
+        progress_callback: Optional[Callable[[int, str], None]] = None,
+    ) -> None:
         with self._command_lock:
             if self.current_status != "ready" or self.process is None:
                 raise RuntimeError(f"GPU Worker 不可用：{self.error or self.current_status}")
@@ -141,6 +147,13 @@ class PersistentGpuWorker:
             while True:
                 message = self.responses.get()
                 event = message.get("event")
+                if event == "progress" and message.get("job_id") == job_id:
+                    if progress_callback:
+                        progress_callback(
+                            int(message.get("progress", 0)),
+                            str(message.get("stage", "GPU 正在对齐")),
+                        )
+                    continue
                 if event == "completed" and message.get("job_id") == job_id:
                     return
                 if event in {"job_error", "worker_exited"}:

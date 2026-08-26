@@ -70,7 +70,7 @@ import time
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import soundfile as sf
@@ -80,6 +80,8 @@ from silero_vad import get_speech_timestamps, load_silero_vad
 
 from qwen_asr import Qwen3ASRModel
 from qwen_asr.inference.qwen3_forced_aligner import Qwen3ForceAlignProcessor
+
+from app.alignment_policy import has_spoken_content, interpolate_missing_ranges
 
 
 LOGGER = logging.getLogger("jsonl_forced_align")
@@ -604,6 +606,7 @@ class QwenEngine:
         language: str,
         batch_size: int,
         context: str = "",
+        progress_callback: Optional[Callable[[int, int], None]] = None,
     ) -> List[TimedToken]:
         output: List[TimedToken] = []
 
@@ -666,6 +669,12 @@ class QwenEngine:
                         )
                     )
 
+            if progress_callback:
+                progress_callback(
+                    min(base + len(batch_chunks), len(chunks)),
+                    len(chunks),
+                )
+
         # Chunk order should already be monotonic, but sort defensively.
         output.sort(
             key=lambda x: (
@@ -685,6 +694,7 @@ class QwenEngine:
         batch_size: int = 24,
         margin_sec: float = 1.25,
         max_window_sec: float = 45.0,
+        progress_callback: Optional[Callable[[int, int], None]] = None,
     ) -> List[LineTime]:
         """
         Exact local forced alignment using the ORIGINAL JSONL line text.
@@ -854,6 +864,12 @@ class QwenEngine:
                     method="local_forced_aligner",
                 )
 
+            if progress_callback:
+                progress_callback(
+                    min(base + len(batch), len(jobs)),
+                    len(jobs),
+                )
+
         return refined
 
 
@@ -884,7 +900,7 @@ def tokenize_jsonl_rows(
     for row in rows:
         row.token_start = len(all_tokens)
 
-        if row.text:
+        if row.text and has_spoken_content(row.text):
             tokens = engine.tokenize_text(
                 row.text,
                 language,
@@ -1164,8 +1180,14 @@ def enforce_monotonic_line_times(
 def run_alignment(
     args: argparse.Namespace,
     engine: Optional[QwenEngine] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None,
 ) -> None:
+    def progress(value: int, stage: str) -> None:
+        if progress_callback:
+            progress_callback(value, stage)
+
     validate_models()
+    progress(23, "检查模型与输入")
 
     language = canonical_language(
         args.source_language
@@ -1204,6 +1226,7 @@ def run_alignment(
         rows=rows,
         language=language,
     )
+    progress(25, "逐行原文分词完成")
 
     LOGGER.info(
         "Reference transcript tokens: %d",
@@ -1227,6 +1250,7 @@ def run_alignment(
             "Normalizing media with FFmpeg: %s",
             args.media,
         )
+        progress(27, "正在提取并标准化音轨")
         normalize_media_with_ffmpeg(
             args.media,
             normalized_wav,
@@ -1237,6 +1261,7 @@ def run_alignment(
         )
 
         duration = len(wav) / SAMPLE_RATE
+        progress(30, "音轨标准化完成")
         LOGGER.info(
             "Media audio duration: %.3f sec",
             duration,
@@ -1251,6 +1276,7 @@ def run_alignment(
         )
 
         chunks = chunker.split(wav)
+        progress(34, f"语音切分完成，共 {len(chunks)} 段")
 
         if not chunks:
             raise RuntimeError(
@@ -1278,6 +1304,10 @@ def run_alignment(
             language=language,
             batch_size=args.asr_batch_size,
             context=args.asr_context,
+            progress_callback=lambda done, total: progress(
+                35 + round(31 * done / max(1, total)),
+                f"ASR 语音识别 {done}/{total} 段",
+            ),
         )
 
         if not hyp_timed_tokens:
@@ -1294,6 +1324,7 @@ def run_alignment(
             "ASR timestamp tokens: %d",
             len(hyp_tokens),
         )
+        progress(68, "ASR 完成，正在全局匹配原文")
 
         # Global monotonic text alignment.
         t_align = time.time()
@@ -1301,6 +1332,7 @@ def run_alignment(
             ref_tokens=ref_tokens,
             hyp_tokens=hyp_tokens,
         )
+        progress(71, "全局单调文本匹配完成")
         LOGGER.info(
             "Global token alignment completed in %.2fs",
             time.time() - t_align,
@@ -1330,6 +1362,7 @@ def run_alignment(
         # Pass B: exact local FA with each original JSONL field string.
         if args.no_local_refine:
             final_times = coarse
+            progress(91, "已完成逐行粗对齐")
         else:
             final_times = engine.refine_lines(
                 wav=wav,
@@ -1339,7 +1372,49 @@ def run_alignment(
                 batch_size=args.fa_batch_size,
                 margin_sec=args.refine_margin_sec,
                 max_window_sec=args.max_refine_window_sec,
+                progress_callback=lambda done, total: progress(
+                    73 + round(18 * done / max(1, total)),
+                    f"ForcedAligner 精确校准 {done}/{total} 行",
+                ),
             )
+            progress(91, "ForcedAligner 精确校准完成")
+
+        interpolated_ranges, interpolated = interpolate_missing_ranges(
+            texts=[row.text for row in rows],
+            ranges=[
+                (item.start, item.end)
+                if item.start is not None and item.end is not None
+                else None
+                for item in final_times
+            ],
+            total_duration=duration,
+        )
+        adjusted_times: List[LineTime] = []
+        for row, original, value, was_interpolated in zip(
+            rows, final_times, interpolated_ranges, interpolated
+        ):
+            if value is None:
+                adjusted_times.append(original)
+                continue
+            if was_interpolated:
+                method = (
+                    "punctuation_gap_interpolation"
+                    if not has_spoken_content(row.text)
+                    else "unresolved_gap_interpolation"
+                )
+                adjusted_times.append(
+                    LineTime(
+                        start=value[0],
+                        end=value[1],
+                        matched_hyp_start=None,
+                        matched_hyp_end=None,
+                        method=method,
+                    )
+                )
+            else:
+                adjusted_times.append(original)
+        final_times = adjusted_times
+        progress(93, "已补全标点与未解析行时间")
 
         final_times = enforce_monotonic_line_times(
             final_times
@@ -1352,6 +1427,7 @@ def run_alignment(
         time_field=time_field,
         method_field=args.method_field,
     )
+    progress(94, "对齐时间轴写入完成")
 
     unresolved = sum(
         1

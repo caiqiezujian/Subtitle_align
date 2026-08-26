@@ -55,7 +55,7 @@
           </div>
 
           <div class="settings-row">
-            <label class="field">
+            <label class="field select-field">
               <span>原文语言</span>
               <select id="language" name="language">
                 <option value="Chinese">中文</option>
@@ -97,6 +97,14 @@
         </div>
         <div class="progress-track"><span id="progressBar"></span></div>
         <div class="progress-meta"><strong id="stageText">正在创建任务</strong><span id="progressText">0%</span></div>
+        <div class="progress-phases" id="progressPhases" aria-label="处理阶段">
+          <span data-start="0">解析输入</span>
+          <span data-start="14">文本清洗</span>
+          <span data-start="23">语音识别</span>
+          <span data-start="68">全局匹配</span>
+          <span data-start="73">精确校准</span>
+          <span data-start="96">生成文件</span>
+        </div>
         <p class="error-message hidden" id="errorMessage"></p>
         <div class="result-summary hidden" id="resultSummary">
           <div><small>输入格式</small><strong id="detectedFormat">—</strong></div>

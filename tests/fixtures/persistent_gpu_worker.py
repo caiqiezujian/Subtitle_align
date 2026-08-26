@@ -17,4 +17,5 @@ for raw in sys.stdin:
     if command["command"] == "shutdown":
         emit("stopped")
         break
+    emit("progress", job_id=command["job_id"], progress=64, stage="ASR 2/3")
     emit("completed", job_id=command["job_id"])

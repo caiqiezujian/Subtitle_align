@@ -192,8 +192,17 @@ class JobManager:
         )
 
         if options.use_flash:
-            self._update(state, progress=15, stage="v4-flash 正在清洗文本")
-            parsed = self.flash.normalize(parsed)
+            self._update(state, progress=14, stage="v4-flash 正在清洗文本")
+            parsed = self.flash.normalize(
+                parsed,
+                progress_callback=lambda done, total: self._update(
+                    state,
+                    progress=14 + round(7 * done / max(1, total)),
+                    stage=f"v4-flash 文本清洗 {done}/{total} 批",
+                ),
+            )
+        else:
+            self._update(state, progress=20, stage="文本无需模型清洗")
 
         normalized_path = job_dir / "source.normalized.jsonl"
         with normalized_path.open("w", encoding="utf-8") as handle:
@@ -230,10 +239,17 @@ class JobManager:
         if not options.local_refine:
             argv.append("--no-local-refine")
 
-        self._update(state, progress=22, stage="常驻 GPU 模型正在进行语音识别与对齐")
-        self.gpu_worker.run_job(state.id, argv, log_path)
+        self._update(state, progress=22, stage="正在提交给常驻 GPU 模型")
+        self.gpu_worker.run_job(
+            state.id,
+            argv,
+            log_path,
+            progress_callback=lambda progress, stage: self._update(
+                state, progress=progress, stage=stage
+            ),
+        )
 
-        self._update(state, progress=92, stage="生成 SRT 和 JSONL")
+        self._update(state, progress=96, stage="生成 SRT 和 JSONL")
         result_dir = job_dir / "results"
         result_dir.mkdir(exist_ok=True)
         jsonl_path = result_dir / "aligned.jsonl"
