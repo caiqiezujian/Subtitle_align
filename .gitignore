@@ -5,7 +5,11 @@ __pycache__/
 .venv/
 venv/
 .env
-config.yaml
+
+# Local runtime configuration. It may contain internal URLs and API keys.
+# Keep config.example.yaml tracked; never commit the real server config.
+/config.yaml
+/config.yaml.*
 data/
 *.log
 .idea/
