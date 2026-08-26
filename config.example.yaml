@@ -1,0 +1,35 @@
+# 复制为 config.yaml 后，只需要修改本文件并执行 bash start.sh。
+# config.yaml 会被 Git 忽略，可以安全填写内部 Key。
+
+server:
+  host: "0.0.0.0"
+  port: 12045
+  workers: 1
+
+gpu:
+  # 容器能看见全部宿主机 GPU 时填写 5。
+  # 如果 Docker 启动时只映射物理卡 5，它在容器内通常编号为 0，此处填写 0。
+  visible_devices: "5"
+  max_concurrent_jobs: 1
+
+models:
+  root: "/data/yb/Code/models"
+
+storage:
+  data_dir: "/data/yb/Code/Subtitle_align/data"
+  max_upload_mb: 4096
+
+security:
+  # 留空表示不启用服务访问 Key。只在可信内网中才建议留空。
+  api_key: ""
+  allow_origins: []
+
+v4_flash:
+  enabled: false
+  base_url: "http://10.185.1.71:8080/v1"
+  api_key: ""
+  model: "dsv4"
+  timeout_seconds: 120
+  retry_count: 2
+  # 内部自签 HTTPS 证书使用 false；可信证书使用 true。
+  verify_ssl: false

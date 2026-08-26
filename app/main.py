@@ -88,6 +88,9 @@ def health() -> dict:
     return {
         "status": "ok" if shutil.which("ffmpeg") and all(models.values()) else "degraded",
         "version": __version__,
+        "config_file": str(settings.config_path),
+        "port": settings.server_port,
+        "gpu_visible_devices": settings.cuda_visible_devices,
         "ffmpeg": bool(shutil.which("ffmpeg")),
         "models": models,
         "v4_flash": manager.flash.available,

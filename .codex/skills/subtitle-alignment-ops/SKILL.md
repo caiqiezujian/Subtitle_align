@@ -29,6 +29,8 @@ Download both artifacts after the job reaches `completed`.
 
 Check `/api/health` first. A degraded response identifies missing FFmpeg or local model directories. Then inspect the job error and, when operating inside the server workspace, `data/jobs/<job-id>/alignment.log`.
 
+Runtime settings normally come from the repository-root `config.yaml`, created from `config.example.yaml`. Prefer changing that file over exporting individual variables. Environment variables remain optional compatibility overrides.
+
 - An input parsing failure: correct the file encoding, malformed structured data, or explicit field name and resubmit.
 - No speech from VAD: confirm the selected media has an audible speech track.
 - CUDA out of memory: keep one service worker and one GPU job, lower alignment batch settings in the engine, or disable FlashAttention only if its installation is incompatible.

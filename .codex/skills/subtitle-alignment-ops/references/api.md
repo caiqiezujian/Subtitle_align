@@ -1,6 +1,6 @@
 # Subtitle alignment API
 
-Default local address: `http://127.0.0.1:8000`. If `SUBALIGN_API_KEY` is set, send it in the `X-API-Key` header. Never print the key.
+Default local address: `http://127.0.0.1:12045`. If `security.api_key` is set in `config.yaml`, send it in the `X-API-Key` header. Never print the key.
 
 ## Health
 

@@ -4,13 +4,12 @@ services:
     image: subtitle-align:latest
     restart: unless-stopped
     ports:
-      - "8000:8000"
-    env_file:
-      - .env
+      - "12045:12045"
     environment:
       SUBALIGN_DATA_DIR: /srv/subtitle-align/data
       QWEN_MODEL_ROOT: /models
     volumes:
+      - ./config.yaml:/srv/subtitle-align/config.yaml:ro
       - ./data:/srv/subtitle-align/data
       - ${HOST_MODEL_ROOT:-/data/yb/Code/models}:/models:ro
     shm_size: "4gb"
