@@ -51,7 +51,7 @@ start.sh             容器内一条命令启动
 ```bash
 cd /data/yb/Code/Subtitle_align
 git pull origin main
-pip install -r requirements-web.txt
+python3 -m pip install -r requirements-web.txt
 cp config.example.yaml config.yaml
 vim config.yaml
 bash start.sh
@@ -165,8 +165,8 @@ JSONL 每行示例：
 输入解析和输出格式测试不加载 GPU 模型：
 
 ```bash
-pip install -r requirements-dev.txt
-pytest
+python3 -m pip install -r requirements-dev.txt
+python3 -m pytest
 ```
 
 实际 GPU 验收建议使用一段 20–60 秒、人工知道台词的音频，确认：任务完成、SRT 在 PotPlayer 正常显示、JSONL 行数等于原文非空行数、时间单调且未解析行被明确标为 `unresolved`。

@@ -12,7 +12,7 @@ git pull origin main
 已有 Qwen、vLLM、Torch 环境时，只需要补充 Web 服务依赖：
 
 ```bash
-pip install -r requirements-web.txt
+python3 -m pip install -r requirements-web.txt
 ```
 
 ## 2. 创建并修改 config.yaml
@@ -139,7 +139,7 @@ sudo firewall-cmd --reload
 健康检查：
 
 ```bash
-curl -s http://127.0.0.1:12045/api/health | python -m json.tool
+curl -s http://127.0.0.1:12045/api/health | python3 -m json.tool
 ```
 
 正常应看到：

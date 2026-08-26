@@ -10,4 +10,11 @@ if [[ ! -f config.yaml ]]; then
   exit 1
 fi
 
-exec python start_server.py
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  echo "找不到 $PYTHON_BIN，请确认容器已经安装 Python 3。"
+  exit 1
+fi
+
+exec "$PYTHON_BIN" start_server.py
