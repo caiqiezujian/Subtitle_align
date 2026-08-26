@@ -1,0 +1,8 @@
+-r requirements-web.txt
+qwen-asr[vllm]
+silero-vad>=6,<7
+soundfile>=0.13,<1
+rapidfuzz>=3.12,<4
+numpy>=1.26
+# 可选：兼容的 NVIDIA GPU 上启用前端的 FlashAttention 2 开关
+# flash-attn --no-build-isolation

@@ -1,0 +1,5 @@
+interface:
+  display_name: "字幕对齐运维"
+  short_description: "Submit, validate, and diagnose subtitle alignment jobs"
+  brand_color: "#1F7464"
+  default_prompt: "Use $subtitle-alignment-ops to align this media with its line-by-line transcript."

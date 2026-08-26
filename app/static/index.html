@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="音视频与逐行原文的高精度字幕对齐工作台" />
+    <title>声轨刻度 · 字幕对齐工作台</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="声轨刻度首页">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span>声轨刻度</span>
+      </a>
+      <div class="service-state"><span id="healthDot"></span><span id="healthText">正在检查服务</span></div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">SUBTITLE ALIGNMENT STUDIO</p>
+        <h1>让每一句话，<br /><em>落在正确的时间里。</em></h1>
+        <p class="hero-copy">上传音视频和逐行原文，自动完成语音识别、强制对齐与时间轴校准。一次处理，同时得到 PotPlayer 可用的 SRT 与可归档的 JSONL。</p>
+        <div class="format-strip" aria-label="支持格式">
+          <span>音频 / 视频</span><b>×</b><span>TXT · SRT · JSONL · JSON · CSV</span><b>→</b><span>SRT + JSONL</span>
+        </div>
+      </section>
+
+      <section class="workspace" aria-labelledby="workspace-title">
+        <div class="workspace-head">
+          <div><span class="step-no">01</span><h2 id="workspace-title">创建对齐任务</h2></div>
+          <p>原文必须与音轨中的实际语言一致</p>
+        </div>
+
+        <form id="alignForm">
+          <div class="upload-grid">
+            <label class="dropzone" id="mediaZone">
+              <input id="mediaInput" name="media" type="file" accept="audio/*,video/*,.mp3,.mp4,.wav,.wmv,.m4a,.flac,.mkv,.webm,.mov,.avi" required />
+              <span class="drop-index">A</span>
+              <span class="drop-icon media-icon" aria-hidden="true"></span>
+              <strong>音频或视频</strong>
+              <small>拖到这里，或点击选择文件</small>
+              <span class="filename" id="mediaName">MP3 · WAV · MP4 · MKV · WEBM</span>
+            </label>
+
+            <label class="dropzone" id="transcriptZone">
+              <input id="transcriptInput" name="transcript" type="file" accept=".txt,.srt,.jsonl,.json,.csv,.tsv,text/plain,application/json" required />
+              <span class="drop-index">B</span>
+              <span class="drop-icon text-icon" aria-hidden="true"></span>
+              <strong>逐行原文</strong>
+              <small>每句话一行，字段可自动识别</small>
+              <span class="filename" id="transcriptName">TXT · SRT · JSONL · JSON · CSV · TSV</span>
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <label class="field">
+              <span>原文语言</span>
+              <select id="language" name="language">
+                <option value="Chinese">中文</option>
+                <option value="English">English</option>
+                <option value="Japanese">日本語</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>文本字段 <i>可选</i></span>
+              <input id="textField" name="text_field" placeholder="自动识别 src / text / 原文…" />
+            </label>
+            <label class="switch-card">
+              <span class="switch-copy"><strong>v4-flash 清洗</strong><small>修复异常格式，不改写原文</small></span>
+              <input id="useFlash" name="use_flash" type="checkbox" />
+              <span class="switch" aria-hidden="true"></span>
+            </label>
+          </div>
+
+          <details class="advanced">
+            <summary>高级设置 <span>可选</span></summary>
+            <div class="advanced-grid">
+              <label class="field"><span>术语与人名提示</span><input id="asrContext" name="asr_context" placeholder="例如：产品名、嘉宾姓名、专业词汇" /></label>
+              <label class="field"><span>访问密钥</span><input id="apiKey" type="password" autocomplete="off" placeholder="服务未设置时留空" /></label>
+              <label class="check"><input id="flashAttention" type="checkbox" /><span>使用 FlashAttention 2</span></label>
+              <label class="check"><input id="localRefine" type="checkbox" checked /><span>逐句精确二次对齐</span></label>
+            </div>
+          </details>
+
+          <div class="action-row">
+            <p id="formHint">准备好后即可提交。长音视频会在后台持续处理。</p>
+            <button class="primary-button" id="submitButton" type="submit"><span>开始对齐</span><b aria-hidden="true">↗</b></button>
+          </div>
+        </form>
+      </section>
+
+      <section class="result-panel hidden" id="resultPanel" aria-live="polite">
+        <div class="result-top">
+          <div><span class="step-no">02</span><h2>任务进度</h2></div>
+          <span class="status-pill" id="statusPill">排队中</span>
+        </div>
+        <div class="progress-track"><span id="progressBar"></span></div>
+        <div class="progress-meta"><strong id="stageText">正在创建任务</strong><span id="progressText">0%</span></div>
+        <p class="error-message hidden" id="errorMessage"></p>
+        <div class="result-summary hidden" id="resultSummary">
+          <div><small>输入格式</small><strong id="detectedFormat">—</strong></div>
+          <div><small>字幕行数</small><strong id="lineCount">—</strong></div>
+          <div><small>成功对齐</small><strong id="alignedCount">—</strong></div>
+        </div>
+        <div class="download-row hidden" id="downloadRow">
+          <button class="download-button srt" data-kind="srt"><span><small>POTPLAYER READY</small><strong>下载 SRT</strong></span><b>↓</b></button>
+          <button class="download-button jsonl" data-kind="jsonl"><span><small>ARCHIVE DATA</small><strong>下载 JSONL</strong></span><b>↓</b></button>
+          <button class="new-button" id="newTask" type="button">再处理一个文件</button>
+        </div>
+      </section>
+
+      <section class="how-it-works">
+        <div class="section-label"><span>工作方式</span><i></i></div>
+        <div class="process-grid">
+          <article><span>1</span><h3>统一输入</h3><p>自动识别文件、编码与文本字段，把不同来源整理为稳定的逐行原文。</p></article>
+          <article><span>2</span><h3>双阶段对齐</h3><p>长音频分段识别后先做全局匹配，再回到局部逐句精确校准。</p></article>
+          <article><span>3</span><h3>标准交付</h3><p>SRT 可直接预览，JSONL 保留毫秒时间和来源信息，便于后续流水线使用。</p></article>
+        </div>
+      </section>
+    </main>
+
+    <footer><span>声轨刻度 / Subtitle Alignment Service</span><span>Qwen3 ASR + Forced Aligner</span></footer>
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>

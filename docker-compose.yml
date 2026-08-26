@@ -1,0 +1,17 @@
+services:
+  subtitle-align:
+    build: .
+    image: subtitle-align:latest
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      SUBALIGN_DATA_DIR: /srv/subtitle-align/data
+      QWEN_MODEL_ROOT: /models
+    volumes:
+      - ./data:/srv/subtitle-align/data
+      - ${HOST_MODEL_ROOT:-/data/yb/Code/models}:/models:ro
+    shm_size: "4gb"
+    gpus: all

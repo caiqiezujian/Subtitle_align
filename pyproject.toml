@@ -1,0 +1,9 @@
+[project]
+name = "subtitle-align-service"
+version = "1.0.0"
+description = "GPU subtitle alignment service with SRT and JSONL outputs"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
