@@ -1,0 +1,33 @@
+# 复制为 config.yaml，修改后执行：bash simple_srt_service_ascend/start.sh
+
+server:
+  host: "0.0.0.0"
+  port: 12045
+
+npu:
+  # 容器内可见的物理 NPU。只映射一张卡时，模型进程内部通常使用 npu:0。
+  visible_devices: "0"
+  logical_device_index: 0
+
+# Transformers 后端会在服务启动时加载两个模型并常驻 NPU。
+alignment_engine:
+  # 910B 首次建议从 4 开始；稳定后再逐步增加到 8 或 16。
+  max_inference_batch_size: 4
+  asr_batch_size: 4
+  forced_aligner_batch_size: 4
+  max_new_tokens: 1024
+  # eager 兼容性最好；确认当前 torch-npu 支持后可尝试 sdpa。
+  attention_implementation: "eager"
+  startup_timeout_seconds: 1800
+  # auto 会根据 SRT 文字判断 Chinese / English / Japanese。
+  language: "auto"
+
+models:
+  # 该目录下必须存在 Qwen3-ASR-1.7B 和 Qwen3-ForcedAligner-0.6B。
+  root: "/data/yb/Code/models"
+
+storage:
+  # 相对路径以 simple_srt_service_ascend 目录为基准。
+  data_dir: "./data"
+  max_upload_mb: 4096
+

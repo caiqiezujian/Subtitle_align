@@ -7,6 +7,14 @@
 
 前端、API、GPU 任务队列、输入适配、v4-flash 辅助清洗、部署文件和项目内 Codex Skill 均已包含在仓库中。
 
+## D910B / Ascend 独立版本
+
+仓库中的 `simple_srt_service_ascend/` 是为昇腾 D910B 单独整理的
+Transformers + torch-npu 版本：接口只接收 `media` 和 `srt`，只返回对齐后的
+SRT，两个模型在启动时加载并常驻 NPU。它与现有 NVIDIA/vLLM 服务相互独立，
+部署前请阅读 `simple_srt_service_ascend/README.md`，不要在仍承载其他业务的
+vLLM 生产容器中直接修改 Transformers 版本。
+
 ## 支持的输入
 
 媒体可以是 FFmpeg 能解码的常见格式，例如 MP3、WAV、M4A、FLAC、MP4、MKV、MOV、WMV、WEBM。
