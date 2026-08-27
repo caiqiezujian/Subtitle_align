@@ -114,7 +114,88 @@
         <div class="download-row hidden" id="downloadRow">
           <button class="download-button srt" data-kind="srt"><span><small>POTPLAYER READY</small><strong>下载 SRT</strong></span><b>↓</b></button>
           <button class="download-button jsonl" data-kind="jsonl"><span><small>ARCHIVE DATA</small><strong>下载 JSONL</strong></span><b>↓</b></button>
-          <button class="new-button" id="newTask" type="button">再处理一个文件</button>
+          <button class="review-button" id="openReview" type="button"><span>播放并验收</span><b aria-hidden="true">▶</b></button>
+        </div>
+      </section>
+
+      <section class="review-studio hidden" id="reviewStudio" aria-labelledby="review-title">
+        <div class="review-head">
+          <div class="review-title-group">
+            <span class="step-no">03</span>
+            <div>
+              <h2 id="review-title">同步播放验收</h2>
+              <p>播放原始音视频，逐句检查最终 SRT 的起止时间</p>
+            </div>
+          </div>
+          <div class="review-actions">
+            <span class="review-ready"><i></i><span id="reviewReadyText">正在准备字幕轨</span></span>
+            <button class="new-button light" id="newTask" type="button">创建新任务</button>
+          </div>
+        </div>
+
+        <div class="review-layout">
+          <div class="preview-column">
+            <div class="player-frame" id="playerFrame">
+              <video class="review-media hidden" id="videoPlayer" controls playsinline preload="metadata"></video>
+              <div class="audio-stage hidden" id="audioStage">
+                <div class="audio-art" aria-hidden="true">
+                  <span class="audio-disc"><i></i></span>
+                  <span class="audio-wave">
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  </span>
+                </div>
+                <div class="audio-copy">
+                  <small>AUDIO REVIEW</small>
+                  <strong id="reviewMediaName">原始音频</strong>
+                </div>
+                <audio class="review-media" id="audioPlayer" controls preload="metadata"></audio>
+              </div>
+              <div class="caption-overlay" id="captionOverlay" aria-live="off"></div>
+              <div class="player-empty" id="playerEmpty">
+                <span aria-hidden="true">▶</span>
+                <strong>完成对齐后即可同步播放</strong>
+                <small>播放器会使用本次上传的原始音视频</small>
+              </div>
+            </div>
+
+            <div class="player-toolbar">
+              <div class="time-readout"><span id="currentTime">00:00:00</span><i>/</i><span id="totalTime">00:00:00</span></div>
+              <div class="toolbar-controls">
+                <label class="compact-switch">
+                  <input id="captionToggle" type="checkbox" checked />
+                  <span aria-hidden="true"></span>
+                  <b>显示字幕</b>
+                </label>
+                <label class="speed-control">
+                  <span>速度</span>
+                  <select id="playbackRate" aria-label="播放速度">
+                    <option value="0.75">0.75×</option>
+                    <option value="1" selected>1.0×</option>
+                    <option value="1.25">1.25×</option>
+                    <option value="1.5">1.5×</option>
+                    <option value="2">2.0×</option>
+                  </select>
+                </label>
+                <button class="fullscreen-button" id="fullscreenButton" type="button">全屏验收</button>
+              </div>
+            </div>
+            <p class="player-note" id="playerNote">点击右侧任意字幕可跳转到对应时间，播放时当前字幕会自动高亮。</p>
+          </div>
+
+          <aside class="cue-panel" aria-label="SRT 字幕列表">
+            <div class="cue-head">
+              <div><small>FINAL SRT TRACK</small><strong>字幕时间轴</strong></div>
+              <span id="cueCounter">0 / 0</span>
+            </div>
+            <div class="cue-list" id="cueList" tabindex="0">
+              <div class="cue-placeholder"><span>···</span><p>字幕生成后将在这里逐句展示</p></div>
+            </div>
+            <div class="review-guide">
+              <span><i>1</i> 点击字幕跳转</span>
+              <span><i>2</i> 听起止点是否自然</span>
+              <span><i>3</i> 下载结果归档</span>
+            </div>
+          </aside>
         </div>
       </section>
 
@@ -123,7 +204,7 @@
         <div class="process-grid">
           <article><span>1</span><h3>统一输入</h3><p>自动识别文件、编码与文本字段，把不同来源整理为稳定的逐行原文。</p></article>
           <article><span>2</span><h3>双阶段对齐</h3><p>长音频分段识别后先做全局匹配，再回到局部逐句精确校准。</p></article>
-          <article><span>3</span><h3>标准交付</h3><p>SRT 可直接预览，JSONL 保留毫秒时间和来源信息，便于后续流水线使用。</p></article>
+          <article><span>3</span><h3>同步验收</h3><p>在页面内播放原始音视频，按最终 SRT 逐句跳转检查，再下载文件归档交付。</p></article>
         </div>
       </section>
     </main>
