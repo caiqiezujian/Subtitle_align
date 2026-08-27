@@ -88,6 +88,9 @@ class PersistentAscendVllmWorker:
         env.pop("CUDA_VISIBLE_DEVICES", None)
         env["ASCEND_RT_VISIBLE_DEVICES"] = self.settings.npu_visible_devices
         env["QWEN_MODEL_ROOT"] = str(self.settings.model_root)
+        # qwen-asr uses vLLM as a library. Force a clean subprocess instead of
+        # forking a process that may already have imported torch-npu.
+        env["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
         self._stderr_handle = self.log_path.open("a", encoding="utf-8", buffering=1)
         self.process = subprocess.Popen(
             command,

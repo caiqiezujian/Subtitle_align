@@ -139,3 +139,8 @@ curl --noproxy '*' --fail-with-body \
 同一张 NPU 一次只执行一个请求，其他请求自动排队。若启动时出现 ACL Graph
 编译问题，将 `enforce_eager` 改成 `true`；若 ForcedAligner 加载时 HBM 不足，
 先把 `gpu_memory_utilization` 从 `0.85` 降到 `0.75`。
+
+若曾经启动失败，再次启动前先用 `npu-smi info` 检查卡上是否还存在旧的
+`EngineCore` 或 Python 进程。旧进程仍占用 NPU 时，应先停止对应的旧服务进程，
+确认卡上资源释放后再重启。本服务会强制 vLLM Worker 使用 `spawn`，并避免在
+EngineCore 创建前初始化 torch-npu，以防止 `507899 / create stream failed`。

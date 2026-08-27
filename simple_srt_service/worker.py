@@ -118,13 +118,13 @@ def main() -> None:
         import torch
         import torch_npu  # noqa: F401
 
-        if not torch.npu.is_available():
-            raise RuntimeError("torch_npu 已导入，但 torch.npu.is_available() 为 False")
-        torch.npu.set_device(args.device)
-
         # Importing qwen-asr through the shared aligner registers its vLLM ASR
         # implementation. The custom constructor below replaces only the
         # CUDA-specific device selection from QwenEngine.__init__.
+        # Do not call torch.npu.set_device(), is_available(), synchronize(),
+        # or allocate an NPU tensor before Qwen3ASRModel.LLM. vLLM 0.14 starts
+        # an EngineCore subprocess, and inheriting an initialized NPU runtime
+        # can make that subprocess fail while creating its default stream.
         import jsonl_forced_align as aligner
 
         aligner.validate_models()

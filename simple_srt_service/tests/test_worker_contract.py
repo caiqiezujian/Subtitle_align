@@ -13,7 +13,8 @@ def test_worker_uses_vllm_for_asr_and_npu_for_forced_aligner():
 
     assert "Qwen3ASRModel.LLM" in source
     assert '"device_map": {"": device}' in source
-    assert "torch.npu.is_available" in source
+    assert "torch.npu.set_device(args.device)" not in source
+    assert "torch.npu.is_available()" not in source
     assert '"cuda:0"' not in source
 
 
@@ -22,6 +23,7 @@ def test_worker_client_sets_only_ascend_device_visibility():
 
     assert 'env["ASCEND_RT_VISIBLE_DEVICES"]' in source
     assert 'env.pop("CUDA_VISIBLE_DEVICES", None)' in source
+    assert 'env["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"' in source
 
 
 def test_build_engine_routes_asr_to_vllm_and_aligner_to_npu():
