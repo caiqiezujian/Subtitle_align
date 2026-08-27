@@ -1,2 +1,9 @@
--r ../requirements-aligner.txt
+-r ../requirements-web.txt
 
+# vLLM、vllm-ascend、torch 和 torch-npu 必须使用 Ascend 镜像内已经
+# 验证匹配的一整套版本，不要在这里重新安装或升级。
+qwen-asr
+silero-vad>=6,<7
+soundfile>=0.13,<1
+rapidfuzz>=3.12,<4
+numpy>=1.26

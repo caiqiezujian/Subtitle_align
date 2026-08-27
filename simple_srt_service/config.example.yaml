@@ -2,26 +2,36 @@
 
 server:
   host: "0.0.0.0"
-  port: 12045
+  port: 12046
 
-gpu:
-  visible_devices: "5"
+npu:
+  # 使用物理 NPU 6；隔离后模型进程内部使用逻辑设备 npu:0。
+  visible_devices: "6"
+  logical_device_index: 0
 
-# 模型在服务启动时加载，后续请求复用同一实例。
+# ASR 由 qwen-asr 调用 vLLM-Ascend，ForcedAligner 由 torch-npu 加载。
+# 两个模型在服务启动时加载，后续请求复用同一实例。
 alignment_engine:
-  gpu_memory_utilization: 0.65
-  max_inference_batch_size: 32
-  max_new_tokens: 2048
-  flash_attention: false
-  startup_timeout_seconds: 900
+  # 这是 vLLM 的通用参数名，在昇腾上表示 NPU HBM 预留比例。
+  gpu_memory_utilization: 0.85
+  max_inference_batch_size: 4
+  asr_batch_size: 4
+  forced_aligner_batch_size: 4
+  max_new_tokens: 1024
+  max_model_len: 4096
+  # false 使用 vLLM-Ascend ACL Graph；遇到图编译问题时改为 true。
+  enforce_eager: false
+  # ForcedAligner 使用 eager 最稳妥，也可以在兼容环境尝试 sdpa。
+  attention_implementation: "eager"
+  startup_timeout_seconds: 1800
   # auto 会根据 SRT 文字自动判断 Chinese / English / Japanese。
   language: "auto"
 
 models:
-  root: "/data/yb/Code/models"
+  # 目录下必须包含 Qwen3-ASR-1.7B 和 Qwen3-ForcedAligner-0.6B。
+  root: "/data/yb/model"
 
 storage:
   # 相对路径以 simple_srt_service 目录为基准。
   data_dir: "./data"
   max_upload_mb: 4096
-

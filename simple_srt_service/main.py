@@ -20,11 +20,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from app.gpu_worker_client import PersistentGpuWorker  # noqa: E402
 from app.srt import write_outputs  # noqa: E402
 from app.transcript import ParsedTranscript, parse_transcript  # noqa: E402
 from simple_srt_service.language import detect_language  # noqa: E402
 from simple_srt_service.settings import settings  # noqa: E402
+from simple_srt_service.worker_client import (  # noqa: E402
+    PersistentAscendVllmWorker,
+)
 
 
 LOGGER = logging.getLogger("simple_srt_service")
@@ -33,7 +35,7 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 
-worker = PersistentGpuWorker(settings, PROJECT_ROOT)
+worker = PersistentAscendVllmWorker(settings, PROJECT_ROOT)
 alignment_lock = asyncio.Lock()
 request_root = settings.data_dir / "requests"
 
@@ -42,19 +44,22 @@ request_root = settings.data_dir / "requests"
 async def lifespan(_: FastAPI):
     request_root.mkdir(parents=True, exist_ok=True)
     LOGGER.info(
-        "Loading resident alignment models on CUDA device %s",
-        settings.cuda_visible_devices,
+        "Loading resident models with qwen-asr + vLLM-Ascend on %s "
+        "(ASCEND_RT_VISIBLE_DEVICES=%s, gpu_memory_utilization=%.2f)",
+        settings.npu_device,
+        settings.npu_visible_devices,
+        settings.engine_gpu_memory_utilization,
     )
     await asyncio.to_thread(worker.start)
-    LOGGER.info("Simple SRT alignment service is ready")
+    LOGGER.info("Ascend vLLM SRT alignment service is ready")
     yield
     await asyncio.to_thread(worker.stop)
 
 
 app = FastAPI(
-    title="Simple SRT Alignment Service",
-    description="上传一个音视频和一个原文 SRT，直接返回对齐后的 SRT。",
-    version="1.0.0",
+    title="Simple Ascend vLLM SRT Alignment Service",
+    description="上传一个音视频和一个原文 SRT，直接返回在昇腾 NPU 上对齐后的 SRT。",
+    version="1.1.0-ascend-vllm",
     lifespan=lifespan,
 )
 
@@ -128,6 +133,14 @@ def run_alignment(
         "alignment_method",
         "--source-language",
         language,
+        "--asr-batch-size",
+        str(settings.engine_asr_batch_size),
+        "--fa-batch-size",
+        str(settings.engine_forced_aligner_batch_size),
+        "--max-inference-batch-size",
+        str(settings.engine_max_inference_batch_size),
+        "--max-new-tokens",
+        str(settings.engine_max_new_tokens),
         "--output",
         str(raw_path),
     ]
@@ -158,7 +171,11 @@ def health() -> dict[str, object]:
         "status": "ok" if status == "ready" else "degraded",
         "models_resident": status == "ready",
         "worker": status,
-        "gpu_visible_devices": settings.cuda_visible_devices,
+        "inference_backend": "qwen-asr-vllm",
+        "accelerator": "ascend-npu",
+        "npu_visible_devices": settings.npu_visible_devices,
+        "npu_device": settings.npu_device,
+        "gpu_memory_utilization": settings.engine_gpu_memory_utilization,
     }
 
 
