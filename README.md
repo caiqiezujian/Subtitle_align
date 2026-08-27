@@ -15,6 +15,9 @@ SRT，两个模型在启动时加载并常驻 NPU。它与现有 NVIDIA/vLLM 服
 部署前请阅读 `simple_srt_service_ascend/README.md`，不要在仍承载其他业务的
 vLLM 生产容器中直接修改 Transformers 版本。
 
+内部调用方请直接查看 [ASCEND_SRT_SERVICE_API.md](ASCEND_SRT_SERVICE_API.md)，
+其中包含 `10.170.23.103:12045` 的健康检查、curl、PowerShell 和 Python 示例。
+
 ## 支持的输入
 
 媒体可以是 FFmpeg 能解码的常见格式，例如 MP3、WAV、M4A、FLAC、MP4、MKV、MOV、WMV、WEBM。
