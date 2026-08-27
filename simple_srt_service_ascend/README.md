@@ -151,6 +151,25 @@ curl -s http://127.0.0.1:12045/health | python3 -m json.tool
 
 ## 调用
 
+使用仓库内 Python 示例：
+
+```bash
+python3 simple_srt_service_ascend/call_example.py \
+  demo.mp4 demo.srt \
+  --server http://127.0.0.1:12045
+```
+
+默认保存为 `demo.aligned.srt`。也可以指定输出路径：
+
+```bash
+python3 simple_srt_service_ascend/call_example.py \
+  demo.mp4 demo.srt \
+  --server http://服务器IP:12045 \
+  --output result.srt
+```
+
+或者直接使用 curl：
+
 ```bash
 curl -X POST http://127.0.0.1:12045/align \
   -F "media=@demo.mp4" \
@@ -177,4 +196,3 @@ nohup bash simple_srt_service_ascend/start.sh \
 - Transformers 不预留 vLLM KV Cache，因此不再使用 `gpu_memory_utilization`。
 - NPU 显存不足时，先把 ASR 和 ForcedAligner 批次从 4 降到 2 或 1。
 - 不要安装 NVIDIA `flash-attn`；首次使用 `eager` attention 验证兼容性。
-
