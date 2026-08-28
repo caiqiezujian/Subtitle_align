@@ -136,6 +136,13 @@ curl --noproxy '*' --fail-with-body \
 
 接口文档：`http://服务器IP:12046/docs`
 
+提供给调用方的完整接口说明见 `simple_srt_service/API_CALL_GUIDE.md`。如果希望
+直接在代码中写死服务地址和三个文件路径后运行，可以使用：
+
+```bash
+python3 simple_srt_service/call_once_hardcoded.py
+```
+
 同一张 NPU 一次只执行一个请求，其他请求自动排队。若启动时出现 ACL Graph
 编译问题，将 `enforce_eager` 改成 `true`；若 ForcedAligner 加载时 HBM 不足，
 先把 `gpu_memory_utilization` 从 `0.85` 降到 `0.75`。
