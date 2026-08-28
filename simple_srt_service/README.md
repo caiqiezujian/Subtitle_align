@@ -95,6 +95,22 @@ tail -f simple_srt_service/service.log
 tail -f simple_srt_service/data/npu-vllm-worker.log
 ```
 
+每次请求还会在下面目录保存独立诊断文件：
+
+```text
+simple_srt_service/data/diagnostics/
+```
+
+响应头 `X-Request-ID` 对应文件名前缀。查看最近一次质量摘要：
+
+```bash
+cat simple_srt_service/data/diagnostics/latest.summary.json
+```
+
+摘要包含语言、ASR 时间戳 token 数、原文映射率、逐行精校数量、插值数量和未解析
+行号。目录中还会保留该请求的 `.alignment.log`、`.aligned.jsonl` 和
+`.aligned.srt`，但不会保留上传的原始音视频或字幕文件。
+
 看到下面的日志表示模型已经常驻：
 
 ```text

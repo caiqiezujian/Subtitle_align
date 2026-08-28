@@ -22,6 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from app.srt import write_outputs  # noqa: E402
 from app.transcript import ParsedTranscript, parse_transcript  # noqa: E402
+from simple_srt_service.diagnostics import persist_request_diagnostics  # noqa: E402
 from simple_srt_service.language import detect_language  # noqa: E402
 from simple_srt_service.settings import settings  # noqa: E402
 from simple_srt_service.worker_client import (  # noqa: E402
@@ -38,11 +39,13 @@ logging.basicConfig(
 worker = PersistentAscendVllmWorker(settings, PROJECT_ROOT)
 alignment_lock = asyncio.Lock()
 request_root = settings.data_dir / "requests"
+diagnostics_root = settings.data_dir / "diagnostics"
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     request_root.mkdir(parents=True, exist_ok=True)
+    diagnostics_root.mkdir(parents=True, exist_ok=True)
     LOGGER.info(
         "Loading resident models with qwen-asr + vLLM-Ascend on %s "
         "(ASCEND_RT_VISIBLE_DEVICES=%s, gpu_memory_utilization=%.2f)",
@@ -164,6 +167,34 @@ def remove_request_dir(path: Path) -> None:
     shutil.rmtree(resolved, ignore_errors=True)
 
 
+def save_request_diagnostics(
+    *,
+    request_id: str,
+    work_dir: Path,
+    media_name: str,
+    subtitle_name: str,
+    language: str | None,
+    status: str,
+    error: str | None = None,
+) -> Path | None:
+    try:
+        path = persist_request_diagnostics(
+            request_id=request_id,
+            work_dir=work_dir,
+            diagnostics_dir=diagnostics_root,
+            media_name=media_name,
+            subtitle_name=subtitle_name,
+            language=language,
+            status=status,
+            error=error,
+        )
+    except Exception:
+        LOGGER.exception("Request %s diagnostics could not be saved", request_id)
+        return None
+    LOGGER.info("Request %s diagnostics saved: %s", request_id, path)
+    return path
+
+
 @app.get("/health", tags=["system"])
 def health() -> dict[str, object]:
     status = worker.current_status
@@ -198,9 +229,12 @@ async def align(
 
     request_id = uuid.uuid4().hex
     request_root.mkdir(parents=True, exist_ok=True)
+    diagnostics_root.mkdir(parents=True, exist_ok=True)
     work_dir = Path(tempfile.mkdtemp(prefix=f"{request_id}-", dir=request_root))
     media_path = work_dir / ("media" + Path(media_name).suffix.casefold())
     subtitle_path = work_dir / "subtitle.srt"
+    transcript: ParsedTranscript | None = None
+    language: str | None = None
     try:
         await save_upload(media, media_path)
         await save_upload(srt, subtitle_path)
@@ -212,10 +246,19 @@ async def align(
             raise HTTPException(status_code=400, detail=f"SRT 解析失败：{exc}") from exc
 
         LOGGER.info("Request %s queued: %s + %s", request_id, media_name, subtitle_name)
+        language = choose_language(transcript)
         async with alignment_lock:
             content = await asyncio.to_thread(
                 run_alignment, request_id, media_path, transcript, work_dir
             )
+        save_request_diagnostics(
+            request_id=request_id,
+            work_dir=work_dir,
+            media_name=media_name,
+            subtitle_name=subtitle_name,
+            language=language,
+            status="completed",
+        )
         output_name = f"{Path(subtitle_name).stem}.aligned.srt"
         return Response(
             content=content,
@@ -224,14 +267,37 @@ async def align(
                 "Content-Disposition": (
                     f"attachment; filename=aligned.srt; "
                     f"filename*=UTF-8''{quote(output_name)}"
-                )
+                ),
+                "X-Request-ID": request_id,
             },
         )
-    except HTTPException:
+    except HTTPException as exc:
+        save_request_diagnostics(
+            request_id=request_id,
+            work_dir=work_dir,
+            media_name=media_name,
+            subtitle_name=subtitle_name,
+            language=language,
+            status="failed",
+            error=str(exc.detail),
+        )
         raise
     except Exception as exc:
         LOGGER.exception("Request %s failed", request_id)
-        raise HTTPException(status_code=500, detail=f"字幕对齐失败：{exc}") from exc
+        save_request_diagnostics(
+            request_id=request_id,
+            work_dir=work_dir,
+            media_name=media_name,
+            subtitle_name=subtitle_name,
+            language=language,
+            status="failed",
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"请求 {request_id} 字幕对齐失败：{exc}",
+            headers={"X-Request-ID": request_id},
+        ) from exc
     finally:
         await media.close()
         await srt.close()

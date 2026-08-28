@@ -18,6 +18,7 @@ def test_align_returns_only_srt_and_cleans_workspace(tmp_path, monkeypatch):
     expected = b"\xef\xbb\xbf1\n00:00:00,000 --> 00:00:01,000\nhello\n"
     monkeypatch.setattr(main, "request_root", tmp_path)
     monkeypatch.setattr(main, "run_alignment", lambda *args: expected)
+    monkeypatch.setattr(main, "save_request_diagnostics", lambda **kwargs: None)
     media = UploadFile(filename="demo.wav", file=BytesIO(b"RIFF-demo"))
     srt = UploadFile(
         filename="demo.srt",
@@ -29,4 +30,5 @@ def test_align_returns_only_srt_and_cleans_workspace(tmp_path, monkeypatch):
     assert response.body == expected
     assert response.media_type == "application/x-subrip; charset=utf-8"
     assert "demo.aligned.srt" in response.headers["content-disposition"]
+    assert response.headers["x-request-id"]
     assert list(tmp_path.iterdir()) == []

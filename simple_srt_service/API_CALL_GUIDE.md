@@ -86,6 +86,10 @@ Content-Type: application/x-subrip; charset=utf-8
 响应正文就是完整的 SRT 文件，不是 JSON。调用方应将响应字节直接保存为
 `.srt` 文件。
 
+响应头包含 `X-Request-ID`。当结果质量异常或服务返回错误时，请把该 ID 提供给
+服务维护人员，以便在 `simple_srt_service/data/diagnostics/` 中定位本次请求的
+独立日志和质量摘要。
+
 这是同步接口：每次调用只会提交一个任务，连接会持续等待，直到对齐完成或发生
 错误。长音视频建议把客户端读取超时设置为 2 小时或更长。不要因为暂时没有返回
 就重复提交同一文件。
