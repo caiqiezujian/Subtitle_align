@@ -36,6 +36,20 @@ def test_persist_request_diagnostics_keeps_small_artifacts_only(tmp_path):
         "Mapped reference tokens: 8/10 (80.00%)\n",
         encoding="utf-8",
     )
+    (work_dir / "source.jsonl").write_text(
+        '{"text":"hello"}\n', encoding="utf-8"
+    )
+    (work_dir / "aligned.raw.jsonl").write_text(
+        '{"text":"hello","time":[0,1]}\n', encoding="utf-8"
+    )
+    (work_dir / "trace.summary.json").write_text(
+        json.dumps({"counts": {"asr_timestamp_tokens": 10}}),
+        encoding="utf-8",
+    )
+    (work_dir / "trace.asr-timeline.jsonl").write_text(
+        '{"token_index":0,"text":"hello","start":0,"end":1}\n',
+        encoding="utf-8",
+    )
     (work_dir / "aligned.internal.jsonl").write_text(
         "\n".join(
             [
@@ -80,7 +94,17 @@ def test_persist_request_diagnostics_keeps_small_artifacts_only(tmp_path):
     assert summary["unresolved_indices"] == [2]
     assert summary["local_forced_aligner_lines"] == 1
     assert summary["alignment_metrics"]["mapped_reference_tokens"]["percent"] == 80.0
+    assert summary["trace"]["counts"]["asr_timestamp_tokens"] == 10
+    assert summary["inputs"]["media"]["sha256"]
+    assert summary["inputs"]["subtitle"]["sha256"]
+    assert summary["artifacts"]["trace_asr_timeline"] == (
+        "abc123.trace.asr-timeline.jsonl"
+    )
     assert (diagnostics_dir / "abc123.alignment.log").is_file()
+    assert (diagnostics_dir / "abc123.source.jsonl").is_file()
+    assert (diagnostics_dir / "abc123.aligned.raw.jsonl").is_file()
+    assert (diagnostics_dir / "abc123.trace.summary.json").is_file()
+    assert (diagnostics_dir / "abc123.trace.asr-timeline.jsonl").is_file()
     assert (diagnostics_dir / "abc123.aligned.jsonl").is_file()
     assert (diagnostics_dir / "abc123.aligned.srt").is_file()
     assert not (diagnostics_dir / "media.wav").exists()

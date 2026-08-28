@@ -8,6 +8,8 @@ import traceback
 from pathlib import Path
 from typing import Any
 
+from simple_srt_service.instrumentation import DetailedAlignmentTrace
+
 
 PROTOCOL_PREFIX = "__SUBALIGN_VLLM_ASCEND__"
 
@@ -165,18 +167,39 @@ def main() -> None:
                 logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
             )
             logging.getLogger().addHandler(handler)
+            trace = DetailedAlignmentTrace(
+                work_dir=log_path.parent,
+                job_id=job_id,
+                engine_options={
+                    "backend": "qwen-asr-vllm-ascend",
+                    "device": args.device,
+                    "gpu_memory_utilization": args.gpu_memory_utilization,
+                    "max_inference_batch_size": args.max_inference_batch_size,
+                    "max_new_tokens": args.max_new_tokens,
+                    "max_model_len": args.max_model_len,
+                    "enforce_eager": args.enforce_eager,
+                    "attention_implementation": args.attention_implementation,
+                },
+            )
             try:
                 job_args = aligner.build_parser().parse_args(command["argv"])
-                aligner.run_alignment(
-                    job_args,
-                    engine=engine,
-                    progress_callback=lambda progress, stage: emit(
-                        "progress",
-                        job_id=job_id,
-                        progress=progress,
-                        stage=stage,
-                    ),
-                )
+                try:
+                    with trace.instrument(aligner, engine) as traced_engine:
+                        aligner.run_alignment(
+                            job_args,
+                            engine=traced_engine,
+                            progress_callback=lambda progress, stage: emit(
+                                "progress",
+                                job_id=job_id,
+                                progress=progress,
+                                stage=stage,
+                            ),
+                        )
+                except Exception as exc:
+                    trace.finish(status="failed", error=str(exc))
+                    raise
+                else:
+                    trace.finish(status="completed")
             finally:
                 logging.getLogger().removeHandler(handler)
                 handler.close()

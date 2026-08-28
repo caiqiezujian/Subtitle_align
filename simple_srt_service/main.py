@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import shutil
@@ -67,9 +68,10 @@ app = FastAPI(
 )
 
 
-async def save_upload(upload: UploadFile, destination: Path) -> None:
+async def save_upload(upload: UploadFile, destination: Path) -> dict[str, object]:
     limit = settings.max_upload_mb * 1024 * 1024
     total = 0
+    digest = hashlib.sha256()
     try:
         with destination.open("wb") as handle:
             while chunk := await upload.read(1024 * 1024):
@@ -79,6 +81,7 @@ async def save_upload(upload: UploadFile, destination: Path) -> None:
                         status_code=413,
                         detail=f"单个文件不能超过 {settings.max_upload_mb} MB",
                     )
+                digest.update(chunk)
                 handle.write(chunk)
     except Exception:
         destination.unlink(missing_ok=True)
@@ -88,6 +91,11 @@ async def save_upload(upload: UploadFile, destination: Path) -> None:
     if total == 0:
         destination.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail="上传文件为空")
+    return {
+        "name": destination.name,
+        "size_bytes": total,
+        "sha256": digest.hexdigest(),
+    }
 
 
 def choose_language(transcript: ParsedTranscript) -> str:
@@ -175,6 +183,8 @@ def save_request_diagnostics(
     subtitle_name: str,
     language: str | None,
     status: str,
+    media_identity: dict[str, object] | None = None,
+    subtitle_identity: dict[str, object] | None = None,
     error: str | None = None,
 ) -> Path | None:
     try:
@@ -186,6 +196,8 @@ def save_request_diagnostics(
             subtitle_name=subtitle_name,
             language=language,
             status=status,
+            media_identity=media_identity,
+            subtitle_identity=subtitle_identity,
             error=error,
         )
     except Exception:
@@ -235,9 +247,13 @@ async def align(
     subtitle_path = work_dir / "subtitle.srt"
     transcript: ParsedTranscript | None = None
     language: str | None = None
+    media_identity: dict[str, object] | None = None
+    subtitle_identity: dict[str, object] | None = None
     try:
-        await save_upload(media, media_path)
-        await save_upload(srt, subtitle_path)
+        media_identity = await save_upload(media, media_path)
+        media_identity["name"] = media_name
+        subtitle_identity = await save_upload(srt, subtitle_path)
+        subtitle_identity["name"] = subtitle_name
         try:
             transcript = parse_transcript(
                 subtitle_path.read_bytes(), filename=subtitle_name
@@ -258,6 +274,8 @@ async def align(
             subtitle_name=subtitle_name,
             language=language,
             status="completed",
+            media_identity=media_identity,
+            subtitle_identity=subtitle_identity,
         )
         output_name = f"{Path(subtitle_name).stem}.aligned.srt"
         return Response(
@@ -279,6 +297,8 @@ async def align(
             subtitle_name=subtitle_name,
             language=language,
             status="failed",
+            media_identity=media_identity,
+            subtitle_identity=subtitle_identity,
             error=str(exc.detail),
         )
         raise
@@ -291,6 +311,8 @@ async def align(
             subtitle_name=subtitle_name,
             language=language,
             status="failed",
+            media_identity=media_identity,
+            subtitle_identity=subtitle_identity,
             error=str(exc),
         )
         raise HTTPException(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -58,6 +59,24 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _file_identity(path: Path | None) -> dict[str, Any] | None:
+    if path is None or not path.is_file():
+        return None
+    return {
+        "name": path.name,
+        "size_bytes": path.stat().st_size,
+        "sha256": _sha256(path),
+    }
+
+
 def persist_request_diagnostics(
     *,
     request_id: str,
@@ -67,6 +86,8 @@ def persist_request_diagnostics(
     subtitle_name: str,
     language: str | None,
     status: str,
+    media_identity: dict[str, object] | None = None,
+    subtitle_identity: dict[str, object] | None = None,
     error: str | None = None,
 ) -> Path:
     """Persist small diagnostic artifacts but never retain uploaded media."""
@@ -77,14 +98,56 @@ def persist_request_diagnostics(
     source_jsonl = work_dir / "aligned.internal.jsonl"
     source_srt = work_dir / "aligned.srt"
 
+    artifact_sources = {
+        "alignment_log": (source_log, ".alignment.log"),
+        "normalized_source": (work_dir / "source.jsonl", ".source.jsonl"),
+        "raw_alignment": (work_dir / "aligned.raw.jsonl", ".aligned.raw.jsonl"),
+        "aligned_jsonl": (source_jsonl, ".aligned.jsonl"),
+        "aligned_srt": (source_srt, ".aligned.srt"),
+        "trace_runtime": (work_dir / "trace.runtime.json", ".trace.runtime.json"),
+        "trace_summary": (work_dir / "trace.summary.json", ".trace.summary.json"),
+        "trace_tokenized_lines": (
+            work_dir / "trace.tokenized-lines.jsonl",
+            ".trace.tokenized-lines.jsonl",
+        ),
+        "trace_vad_chunks": (
+            work_dir / "trace.vad-chunks.jsonl",
+            ".trace.vad-chunks.jsonl",
+        ),
+        "trace_asr_timeline": (
+            work_dir / "trace.asr-timeline.jsonl",
+            ".trace.asr-timeline.jsonl",
+        ),
+        "trace_token_mapping": (
+            work_dir / "trace.token-mapping.jsonl",
+            ".trace.token-mapping.jsonl",
+        ),
+        "trace_line_stages": (
+            work_dir / "trace.line-stages.jsonl",
+            ".trace.line-stages.jsonl",
+        ),
+    }
+    artifacts: dict[str, str] = {}
+    for name, (source, suffix) in artifact_sources.items():
+        if not source.is_file():
+            continue
+        destination = prefix.with_suffix(suffix)
+        shutil.copy2(source, destination)
+        artifacts[name] = destination.name
+
     log_text = ""
     if source_log.is_file():
         log_text = source_log.read_text(encoding="utf-8", errors="replace")
-        shutil.copy2(source_log, prefix.with_suffix(".alignment.log"))
-    if source_jsonl.is_file():
-        shutil.copy2(source_jsonl, prefix.with_suffix(".aligned.jsonl"))
-    if source_srt.is_file():
-        shutil.copy2(source_srt, prefix.with_suffix(".aligned.srt"))
+
+    trace_summary: dict[str, Any] | None = None
+    trace_summary_path = work_dir / "trace.summary.json"
+    if trace_summary_path.is_file():
+        try:
+            value = json.loads(trace_summary_path.read_text(encoding="utf-8"))
+            if isinstance(value, dict):
+                trace_summary = value
+        except (OSError, json.JSONDecodeError):
+            trace_summary = None
 
     rows = read_jsonl(source_jsonl) if source_jsonl.is_file() else []
     method_counts = Counter(str(row.get("method", "unknown")) for row in rows)
@@ -122,6 +185,15 @@ def persist_request_diagnostics(
             if method in interpolated_methods
         ),
         "alignment_metrics": parse_alignment_metrics(log_text),
+        "trace": trace_summary,
+        "inputs": {
+            "media": media_identity
+            or _file_identity(next(work_dir.glob("media.*"), None)),
+            "subtitle": subtitle_identity
+            or _file_identity(work_dir / "subtitle.srt"),
+            "normalized_source": _file_identity(work_dir / "source.jsonl"),
+        },
+        "artifacts": artifacts,
         "error": error,
     }
 

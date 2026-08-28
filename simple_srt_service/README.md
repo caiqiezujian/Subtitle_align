@@ -107,9 +107,30 @@ simple_srt_service/data/diagnostics/
 cat simple_srt_service/data/diagnostics/latest.summary.json
 ```
 
-摘要包含语言、ASR 时间戳 token 数、原文映射率、逐行精校数量、插值数量和未解析
-行号。目录中还会保留该请求的 `.alignment.log`、`.aligned.jsonl` 和
-`.aligned.srt`，但不会保留上传的原始音视频或字幕文件。
+摘要包含语言、输入文件 SHA256、模型与依赖版本、ASR 时间戳 token 数、原文映射
+率、逐行精校数量、插值数量和未解析行号。目录中还会按请求 ID 保存：
+
+- `.trace.runtime.json`：Python、torch、torch-npu、qwen-asr、vLLM、
+  vllm-ascend、Transformers 版本，实际引擎参数以及两个模型目录的文件清单指纹。
+- `.trace.tokenized-lines.jsonl`：每条字幕的原文、语言、token 范围和分词结果。
+- `.trace.vad-chunks.jsonl`：VAD 切出的每段语音起止时间。
+- `.trace.asr-timeline.jsonl`：ASR 返回的每个 token、归一化文本和绝对时间戳。
+- `.trace.token-mapping.jsonl`：每个原文 token 对应的 ASR token 及是否精确匹配。
+- `.trace.line-stages.jsonl`：每行的粗对齐、ForcedAligner 精校和最终时间。
+- `.trace.summary.json`：上述各层的计数、映射率、方法统计和追踪异常。
+- `.source.jsonl`、`.aligned.raw.jsonl`、`.aligned.jsonl`、`.aligned.srt` 和
+  `.alignment.log`：标准化输入以及各类最终结果。
+
+查找最近一次请求的所有文件：
+
+```bash
+cd /data/yb/Subtitle_align-main
+REQUEST_ID=$(python3 -c "import json; print(json.load(open('simple_srt_service/data/diagnostics/latest.summary.json'))['request_id'])")
+ls -lh simple_srt_service/data/diagnostics/${REQUEST_ID}*
+```
+
+诊断目录不会复制原始音视频和原始 SRT 文件，但会保存标准化字幕文本、ASR 识别
+文本和时间戳，因此该目录只应由服务维护人员访问。
 
 看到下面的日志表示模型已经常驻：
 
