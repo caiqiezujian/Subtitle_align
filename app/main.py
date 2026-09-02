@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from . import __version__
 from .config import settings
 from .jobs import JobManager, JobOptions
+from .line_input import detect_spoken_language, parse_lines_json, write_lines_jsonl
 
 
 logging.basicConfig(
@@ -139,6 +140,55 @@ async def create_job(
         await save_upload(transcript, transcript_path)
     except Exception:
         manager._update(state, status="failed", stage="上传失败", error="文件上传失败")
+        raise
+    await manager.enqueue(state.id, options)
+    return state.public_dict()
+
+
+@app.post(
+    "/api/line-jobs",
+    status_code=202,
+    dependencies=[Depends(require_api_key)],
+    tags=["alignment"],
+)
+async def create_line_job(
+    media: Annotated[UploadFile, File(description="音频或视频文件")],
+    lines: Annotated[
+        str,
+        Form(description='JSON 字符串数组，例如 ["第一句","第二句"]'),
+    ],
+) -> dict:
+    """Submit media plus an ordered transcript array to the resident GPU worker."""
+    try:
+        parsed_lines = parse_lines_json(lines)
+    except ValueError as exc:
+        await media.close()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    media_name = Path(media.filename or "media.bin").name
+    language = detect_spoken_language(parsed_lines)
+    options = JobOptions(
+        language=language,
+        text_field="text",
+        use_flash=False,
+        asr_context="",
+        local_refine=True,
+    )
+    state, media_path, transcript_path = manager.create(
+        media_name,
+        "lines.jsonl",
+        options,
+    )
+    try:
+        await save_upload(media, media_path)
+        write_lines_jsonl(parsed_lines, transcript_path)
+    except Exception:
+        manager._update(
+            state,
+            status="failed",
+            stage="输入保存失败",
+            error="音视频或文本数组保存失败",
+        )
         raise
     await manager.enqueue(state.id, options)
     return state.public_dict()

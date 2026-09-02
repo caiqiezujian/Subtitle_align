@@ -12,6 +12,7 @@ venv/
 /config.yaml.*
 data/
 *.log
+*.pid
 .idea/
 .vscode/
 .DS_Store

@@ -5,6 +5,10 @@
 - `SRT`：UTF-8 BOM 编码，可直接加载到 PotPlayer。
 - `JSONL`：保留逐行文本、毫秒级起止时间、时长、状态、对齐方法和输入来源字段。
 
+无需前端的“音视频 + JSON 字符串数组”调用方式见
+[`GPU_LINES_API.md`](GPU_LINES_API.md)。它复用同一常驻 GPU Worker，通过异步
+任务接口支持批量调用，不会额外加载一份模型。
+
 前端、API、GPU 任务队列、输入适配、v4-flash 辅助清洗、部署文件和项目内 Codex Skill 均已包含在仓库中。
 
 ## D910B / Ascend 独立版本
@@ -71,6 +75,13 @@ bash start.sh
 ```
 
 以后修改配置只编辑 `config.yaml`，启动只执行 `bash start.sh`。打开 `http://服务器地址:12045`，接口文档在 `/docs`，健康检查在 `/api/health`。
+
+需要在后台常驻运行时执行：
+
+```bash
+bash start_background.sh
+tail -f subtitle-align.log
+```
 
 `config.yaml` 中统一配置：
 
