@@ -17,4 +17,6 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
+# 后台重定向日志时也立即刷新启动进度，避免模型加载期间看起来“没有日志”。
+export PYTHONUNBUFFERED=1
 exec "$PYTHON_BIN" start_server.py

@@ -8,8 +8,18 @@
 ```bash
 cd /data/yb/Subtitle_align-main
 bash start_background.sh
+```
+
+脚本会读取本机私有的 `config.yaml` 端口，并持续等待 ASR 与 ForcedAligner
+模型加载完成；只有 `/api/health` 确认真正可用后才会提示启动成功。首次加载可能需要
+几分钟。如需另开终端观察日志：
+
+```bash
 tail -f subtitle-align.log
 ```
+
+`config.example.yaml` 只是 Git 中保存的配置模板，服务不会读取它；实际运行只读取
+被 `.gitignore` 忽略的 `config.yaml`，所以拉取代码不会覆盖服务器的模型路径和 Key。
 
 正常启动后检查：
 
